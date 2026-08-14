@@ -1,7 +1,7 @@
 {
   "name": "dsh-onebot",
   "description": "OneBot v11 HTTP and WebSocket adapter for DeepSeek Harness",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "type": "module",
   "main": "lib/index.js",
   "module": "lib/index.js",
@@ -90,6 +90,7 @@
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-user-approval": "^0.1.0-rc.6",
     "@types/node": "^25.0.2",
+    "@types/react": "^19.2.18",
     "@types/ws": "^8.18.1",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",

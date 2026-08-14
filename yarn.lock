@@ -803,6 +803,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react@npm:^19.2.18":
+  version: 19.2.18
+  resolution: "@types/react@npm:19.2.18"
+  dependencies:
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/d04216172b4b4362b310017c210dfbe019fb4f4e7dffd0313e70b3acb3051d5c3e76e7e84e3cf4c6a3c824993ffadfe3949e589a6398a09d4200e7670e2962de
+  languageName: node
+  linkType: hard
+
 "@types/ws@npm:^8.18.1":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
@@ -826,6 +835,13 @@ __metadata:
   version: 4.1.0
   resolution: "birpc@npm:4.1.0"
   checksum: 10c0/20ef6536c1d515701899defaee1b90280dd8e0419882895a0b93a35ba3e71fcbdaa84bf83f1530e25c3c125a5f5eac58d374ca4c669040ebef37c221bacd66f4
+  languageName: node
+  linkType: hard
+
+"csstype@npm:^3.2.2":
+  version: 3.2.3
+  resolution: "csstype@npm:3.2.3"
+  checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
   languageName: node
   linkType: hard
 
@@ -853,6 +869,7 @@ __metadata:
     "@deepseek-ai/dsh-user-approval": "npm:^0.1.0-rc.6"
     "@deepseek-ai/schemastery": "npm:^3.18.1"
     "@types/node": "npm:^25.0.2"
+    "@types/react": "npm:^19.2.18"
     "@types/ws": "npm:^8.18.1"
     oxfmt: "npm:^0.62.0"
     oxlint: "npm:^1.77.0"

@@ -38,10 +38,20 @@ function isPublicAddress(address: string): boolean {
       return value >= base && value < base + size
     }
     return ![
-      [0x00000000, 8], [0x0a000000, 8], [0x64400000, 10], [0x7f000000, 8],
-      [0xa9fe0000, 16], [0xac100000, 12], [0xc0000000, 24], [0xc0000200, 24],
-      [0xc0586300, 24], [0xc0a80000, 16], [0xc6120000, 15], [0xc6336400, 24],
-      [0xcb007100, 24], [0xe0000000, 4]
+      [0x00000000, 8],
+      [0x0a000000, 8],
+      [0x64400000, 10],
+      [0x7f000000, 8],
+      [0xa9fe0000, 16],
+      [0xac100000, 12],
+      [0xc0000000, 24],
+      [0xc0000200, 24],
+      [0xc0586300, 24],
+      [0xc0a80000, 16],
+      [0xc6120000, 15],
+      [0xc6336400, 24],
+      [0xcb007100, 24],
+      [0xe0000000, 4]
     ].some(([base, bits]) => inRange(base, bits))
   }
   const normalized = address.toLowerCase()
@@ -49,11 +59,13 @@ function isPublicAddress(address: string): boolean {
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(normalized)
   if (mapped !== null) return isPublicAddress(mapped[1])
   const first = Number.parseInt(normalized.split(':', 1)[0] || '0', 16)
-  return (first & 0xfe00) !== 0xfc00 &&
+  return (
+    (first & 0xfe00) !== 0xfc00 &&
     (first & 0xffc0) !== 0xfe80 &&
     (first & 0xffc0) !== 0xfec0 &&
     (first & 0xff00) !== 0xff00 &&
     !normalized.startsWith('2001:db8:')
+  )
 }
 
 async function publicImageUrl(source: string): Promise<URL> {
@@ -61,7 +73,8 @@ async function publicImageUrl(source: string): Promise<URL> {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error('onebot: image URL must use http or https')
   }
-  if (url.username !== '' || url.password !== '') throw new Error('onebot: image URL must not contain credentials')
+  if (url.username !== '' || url.password !== '')
+    throw new Error('onebot: image URL must not contain credentials')
   if (isIP(url.hostname) !== 0 && !isPublicAddress(url.hostname)) {
     throw new Error('onebot: image URL must use a public address')
   }
@@ -92,7 +105,11 @@ function dataImage(source: string, maxBytes: number): SaveImageAttachment {
   return { data: boundedBase64(match[2], maxBytes), mediaType: mediaType(match[1]) }
 }
 
-async function httpImage(source: string, maxBytes: number, timeoutMs: number): Promise<SaveImageAttachment> {
+async function httpImage(
+  source: string,
+  maxBytes: number,
+  timeoutMs: number
+): Promise<SaveImageAttachment> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -141,7 +158,9 @@ export async function saveIncomingImages(
   ctx: Context,
   sources: readonly string[],
   requestTimeout: number
-): Promise<Array<{ type: 'image'; attachment: Awaited<ReturnType<Context['attachments']['saveImage']>> }>> {
+): Promise<
+  Array<{ type: 'image'; attachment: Awaited<ReturnType<Context['attachments']['saveImage']>> }>
+> {
   const limits = ctx.attachments.imageLimits
   if (sources.length > limits.maxImagesPerMessage) {
     throw new Error(`onebot: message exceeds ${limits.maxImagesPerMessage} images`)
@@ -152,7 +171,9 @@ export async function saveIncomingImages(
     const input = source.startsWith('data:')
       ? dataImage(source, limits.maxImageBytes)
       : source.startsWith('base64://')
-        ? (() => { throw new Error('onebot: bare base64 image requires a declared media type') })()
+        ? (() => {
+            throw new Error('onebot: bare base64 image requires a declared media type')
+          })()
         : await httpImage(source, limits.maxImageBytes, requestTimeout)
     total += input.data.byteLength
     if (total > limits.maxMessageImageBytes) {
@@ -161,8 +182,10 @@ export async function saveIncomingImages(
     inputs.push(input)
   }
   await Promise.all(inputs.map((input) => ctx.attachments.validateImage(input)))
-  return Promise.all(inputs.map(async (input) => ({
-    type: 'image' as const,
-    attachment: await ctx.attachments.saveImage(input)
-  })))
+  return Promise.all(
+    inputs.map(async (input) => ({
+      type: 'image' as const,
+      attachment: await ctx.attachments.saveImage(input)
+    }))
+  )
 }

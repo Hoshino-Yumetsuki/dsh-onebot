@@ -17,7 +17,8 @@ export default defineConfig([
     external
   },
   {
-    input: './src/client.ts',
+    input: './src/client.tsx',
+    transform: { jsx: { runtime: 'classic' } },
     output: [{ file: 'lib/client.js', format: 'es' }],
     external
   },

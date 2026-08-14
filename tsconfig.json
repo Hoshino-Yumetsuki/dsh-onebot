@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "moduleResolution": "bundler",
-    "types": ["node"]
+    "jsx": "react",
+    "types": ["node", "react"]
   },
   "include": ["src"]
 }

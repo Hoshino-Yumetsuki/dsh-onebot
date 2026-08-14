@@ -16,13 +16,24 @@ export interface CredentialResolvers {
   webhookSecret(): Promise<string | undefined>
 }
 
-interface Logger { warn(message: string): void }
-interface Pending { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }
+interface Logger {
+  warn(message: string): void
+}
+interface Pending {
+  resolve(value: unknown): void
+  reject(error: Error): void
+  timer: ReturnType<typeof setTimeout>
+}
 const MAX_EVENT_BYTES = 1024 * 1024
 
 function isLoopbackHost(host: string): boolean {
   const normalized = host.toLowerCase()
-  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]'
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '::1' ||
+    normalized === '[::1]'
+  )
 }
 
 function rawText(data: RawData): string {
@@ -98,7 +109,8 @@ export class OneBotTransportRuntime implements OneBotTransport {
       }
     }
     const socket = this.socket
-    if (socket === undefined || socket.readyState !== WebSocket.OPEN) throw new Error('onebot: API connection is not open')
+    if (socket === undefined || socket.readyState !== WebSocket.OPEN)
+      throw new Error('onebot: API connection is not open')
     const echo = String(this.nextEcho++)
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -120,7 +132,9 @@ export class OneBotTransportRuntime implements OneBotTransport {
   private actionData(value: unknown): unknown {
     const response = value as Partial<OneBotActionResponse>
     if (response?.status !== 'ok' || response.retcode !== 0) {
-      throw new Error(`onebot: API request failed (${String(response?.retcode)}): ${response?.wording ?? response?.message ?? ''}`)
+      throw new Error(
+        `onebot: API request failed (${String(response?.retcode)}): ${response?.wording ?? response?.message ?? ''}`
+      )
     }
     return response.data
   }
@@ -165,7 +179,9 @@ export class OneBotTransportRuntime implements OneBotTransport {
     ])
     if (!isLoopbackHost(config.listenHost)) {
       if (mode === 'reverse-ws' && token === undefined) {
-        throw new Error('onebot: access token is required when reverse WebSocket listens beyond loopback')
+        throw new Error(
+          'onebot: access token is required when reverse WebSocket listens beyond loopback'
+        )
       }
       if (mode === 'http' && secret === undefined) {
         throw new Error('onebot: webhook secret is required when HTTP listens beyond loopback')
@@ -175,22 +191,37 @@ export class OneBotTransportRuntime implements OneBotTransport {
     const path = normalizedPath(config.listenPath)
     const server = createServer((request, response) => {
       if (mode === 'http') void this.webhook(request, response, path, secret)
-      else { response.statusCode = 404; response.end() }
+      else {
+        response.statusCode = 404
+        response.end()
+      }
     })
     this.server = server
     if (mode === 'reverse-ws') {
       const wsServer = new WebSocketServer({ noServer: true, maxPayload: MAX_EVENT_BYTES })
       this.wsServer = wsServer
       server.on('upgrade', (request, socket, head) => {
-        if (new URL(request.url ?? '/', 'http://localhost').pathname !== path || !this.authorized(request, token)) {
-          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return
+        if (
+          new URL(request.url ?? '/', 'http://localhost').pathname !== path ||
+          !this.authorized(request, token)
+        ) {
+          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
+          socket.destroy()
+          return
         }
         const role = request.headers['x-client-role']
         const selfId = request.headers['x-self-id']
-        if ((role !== 'API' && role !== 'Event' && role !== 'Universal') || typeof selfId !== 'string') {
-          socket.write('HTTP/1.1 400 Bad Request\r\n\r\n'); socket.destroy(); return
+        if (
+          (role !== 'API' && role !== 'Event' && role !== 'Universal') ||
+          typeof selfId !== 'string'
+        ) {
+          socket.write('HTTP/1.1 400 Bad Request\r\n\r\n')
+          socket.destroy()
+          return
         }
-        wsServer.handleUpgrade(request, socket, head, (webSocket) => this.acceptReverse(webSocket, role))
+        wsServer.handleUpgrade(request, socket, head, (webSocket) =>
+          this.acceptReverse(webSocket, role)
+        )
       })
     }
     await new Promise<void>((resolve, reject) => {
@@ -209,9 +240,14 @@ export class OneBotTransportRuntime implements OneBotTransport {
       this.eventSocket = socket
     }
     socket.on('message', (data) => this.receive(data))
-    socket.on('error', (error) => this.logger.warn(`onebot: reverse WebSocket error: ${error.message}`))
+    socket.on('error', (error) =>
+      this.logger.warn(`onebot: reverse WebSocket error: ${error.message}`)
+    )
     socket.on('close', () => {
-      if (this.socket === socket) { this.socket = undefined; this.failPending(new Error('onebot: API connection closed')) }
+      if (this.socket === socket) {
+        this.socket = undefined
+        this.failPending(new Error('onebot: API connection closed'))
+      }
       if (this.eventSocket === socket) this.eventSocket = undefined
     })
   }
@@ -221,10 +257,20 @@ export class OneBotTransportRuntime implements OneBotTransport {
     return request.headers.authorization === `Bearer ${token}`
   }
 
-  private async webhook(request: IncomingMessage, response: ServerResponse, path: string, secret: string | undefined): Promise<void> {
+  private async webhook(
+    request: IncomingMessage,
+    response: ServerResponse,
+    path: string,
+    secret: string | undefined
+  ): Promise<void> {
     try {
-      if (request.method !== 'POST' || new URL(request.url ?? '/', 'http://localhost').pathname !== path) {
-        response.statusCode = 404; response.end(); return
+      if (
+        request.method !== 'POST' ||
+        new URL(request.url ?? '/', 'http://localhost').pathname !== path
+      ) {
+        response.statusCode = 404
+        response.end()
+        return
       }
       const chunks: Buffer[] = []
       let length = 0
@@ -238,14 +284,24 @@ export class OneBotTransportRuntime implements OneBotTransport {
       if (secret !== undefined) {
         const actual = request.headers['x-signature']
         const expected = `sha1=${createHmac('sha1', secret).update(body).digest('hex')}`
-        if (typeof actual !== 'string' || actual.length !== expected.length || !timingSafeEqual(Buffer.from(actual), Buffer.from(expected))) {
-          response.statusCode = 401; response.end(); return
+        if (
+          typeof actual !== 'string' ||
+          actual.length !== expected.length ||
+          !timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
+        ) {
+          response.statusCode = 401
+          response.end()
+          return
         }
       }
       const value: unknown = JSON.parse(body.toString())
       const selfId = (value as { self_id?: unknown })?.self_id
       const headerId = request.headers['x-self-id']
-      if (headerId !== undefined && String(selfId) !== headerId) { response.statusCode = 400; response.end(); return }
+      if (headerId !== undefined && String(selfId) !== headerId) {
+        response.statusCode = 400
+        response.end()
+        return
+      }
       this.observeEvent(value)
       response.statusCode = 204
       response.end()
@@ -258,13 +314,23 @@ export class OneBotTransportRuntime implements OneBotTransport {
 
   private receive(data: RawData): void {
     let value: unknown
-    try { value = JSON.parse(rawText(data)) } catch { this.logger.warn('onebot: ignored invalid JSON frame'); return }
+    try {
+      value = JSON.parse(rawText(data))
+    } catch {
+      this.logger.warn('onebot: ignored invalid JSON frame')
+      return
+    }
     const echo = (value as { echo?: unknown })?.echo
     if (typeof echo === 'string' || typeof echo === 'number') {
       const pending = this.pending.get(String(echo))
       if (pending === undefined) return
-      this.pending.delete(String(echo)); clearTimeout(pending.timer)
-      try { pending.resolve(this.actionData(value)) } catch (error) { pending.reject(error as Error) }
+      this.pending.delete(String(echo))
+      clearTimeout(pending.timer)
+      try {
+        pending.resolve(this.actionData(value))
+      } catch (error) {
+        pending.reject(error as Error)
+      }
       return
     }
     this.observeEvent(value)
@@ -272,14 +338,18 @@ export class OneBotTransportRuntime implements OneBotTransport {
 
   private observeEvent(value: unknown): void {
     const event = value as { post_type?: unknown; meta_event_type?: unknown }
-    if (event.post_type === 'meta_event' && event.meta_event_type === 'heartbeat') this.armHeartbeat()
+    if (event.post_type === 'meta_event' && event.meta_event_type === 'heartbeat')
+      this.armHeartbeat()
     this.sink(value)
   }
 
   private armHeartbeat(): void {
     const timeout = this.source().heartbeatTimeout
     if (this.heartbeatTimer !== undefined) clearTimeout(this.heartbeatTimer)
-    if (timeout === 0) { this.heartbeatTimer = undefined; return }
+    if (timeout === 0) {
+      this.heartbeatTimer = undefined
+      return
+    }
     this.heartbeatTimer = setTimeout(() => {
       this.logger.warn(`onebot: heartbeat timed out after ${timeout}ms`)
       if (this.source().transport === 'forward-ws') this.restart()
@@ -288,8 +358,16 @@ export class OneBotTransportRuntime implements OneBotTransport {
   }
 
   private scheduleReconnect(): void {
-    if (this.stopped || this.source().transport !== 'forward-ws' || this.reconnectTimer !== undefined) return
-    this.reconnectTimer = setTimeout(() => { this.reconnectTimer = undefined; void this.open() }, this.source().reconnectInterval)
+    if (
+      this.stopped ||
+      this.source().transport !== 'forward-ws' ||
+      this.reconnectTimer !== undefined
+    )
+      return
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined
+      void this.open()
+    }, this.source().reconnectInterval)
   }
 
   private async reset(reopen: boolean): Promise<void> {
@@ -297,18 +375,25 @@ export class OneBotTransportRuntime implements OneBotTransport {
     if (this.reconnectTimer !== undefined) clearTimeout(this.reconnectTimer)
     if (this.heartbeatTimer !== undefined) clearTimeout(this.heartbeatTimer)
     this.reconnectTimer = this.heartbeatTimer = undefined
-    const socket = this.socket; const eventSocket = this.eventSocket
+    const socket = this.socket
+    const eventSocket = this.eventSocket
     this.socket = this.eventSocket = undefined
-    socket?.close(); if (eventSocket !== socket) eventSocket?.close()
-    this.wsServer?.close(); this.wsServer = undefined
-    const server = this.server; this.server = undefined
+    socket?.close()
+    if (eventSocket !== socket) eventSocket?.close()
+    this.wsServer?.close()
+    this.wsServer = undefined
+    const server = this.server
+    this.server = undefined
     if (server !== undefined) await new Promise<void>((resolve) => server.close(() => resolve()))
     this.failPending(new Error('onebot: transport restarted'))
     if (reopen && !this.stopped) await this.open()
   }
 
   private failPending(error: Error): void {
-    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(error) }
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer)
+      pending.reject(error)
+    }
     this.pending.clear()
   }
 }

@@ -13,26 +13,26 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 
 ## 配置
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `transport` | `forward-ws` | `forward-ws`、`reverse-ws` 或 `http` |
-| `url` | `ws://127.0.0.1:3001` | 正向 WS 地址或 HTTP API base URL |
-| `listenHost` | `127.0.0.1` | 反向 WS / webhook 监听地址 |
-| `listenPort` | `3002` | 监听端口 |
-| `listenPath` | `/onebot` | 监听路径 |
-| `accessTokenRef` | `ONEBOT_ACCESS_TOKEN` | 访问令牌的 DSH credential ref |
-| `webhookSecretRef` | `ONEBOT_WEBHOOK_SECRET` | webhook secret 的 DSH credential ref |
-| `reconnectInterval` | `5000` | 重连间隔（毫秒） |
-| `requestTimeout` | `30000` | action 请求超时（毫秒） |
-| `heartbeatTimeout` | `120000` | 心跳超时（毫秒），`0` 禁用 |
-| `commandPrefix` | 空 | 非空时要求此前缀，并从 prompt 移除 |
-| `respondToPrivate` | `true` | 响应私聊 |
-| `respondToGroup` | `true` | 响应群聊 |
-| `groupMentionOnly` | `true` | 群聊要求提及机器人 |
-| `userAccessMode` | `disabled` | `disabled`、`allowlist`、`blocklist` |
-| `userIds` | `[]` | 用户 ID 列表 |
-| `groupAccessMode` | `disabled` | `disabled`、`allowlist`、`blocklist` |
-| `groupIds` | `[]` | 群 ID 列表 |
+| 字段                | 默认值                  | 说明                                 |
+| ------------------- | ----------------------- | ------------------------------------ |
+| `transport`         | `forward-ws`            | `forward-ws`、`reverse-ws` 或 `http` |
+| `url`               | `ws://127.0.0.1:3001`   | 正向 WS 地址或 HTTP API base URL     |
+| `listenHost`        | `127.0.0.1`             | 反向 WS / webhook 监听地址           |
+| `listenPort`        | `3002`                  | 监听端口                             |
+| `listenPath`        | `/onebot`               | 监听路径                             |
+| `accessTokenRef`    | `ONEBOT_ACCESS_TOKEN`   | 访问令牌的 DSH credential ref        |
+| `webhookSecretRef`  | `ONEBOT_WEBHOOK_SECRET` | webhook secret 的 DSH credential ref |
+| `reconnectInterval` | `5000`                  | 重连间隔（毫秒）                     |
+| `requestTimeout`    | `30000`                 | action 请求超时（毫秒）              |
+| `heartbeatTimeout`  | `120000`                | 心跳超时（毫秒），`0` 禁用           |
+| `commandPrefix`     | 空                      | 非空时要求此前缀，并从 prompt 移除   |
+| `respondToPrivate`  | `true`                  | 响应私聊                             |
+| `respondToGroup`    | `true`                  | 响应群聊                             |
+| `groupMentionOnly`  | `true`                  | 群聊要求提及机器人                   |
+| `userAccessMode`    | `disabled`              | `disabled`、`allowlist`、`blocklist` |
+| `userIds`           | `[]`                    | 用户 ID 列表                         |
+| `groupAccessMode`   | `disabled`              | `disabled`、`allowlist`、`blocklist` |
+| `groupIds`          | `[]`                    | 群 ID 列表                           |
 
 数组在设置 UI 中每行一个 ID，保存时去空白并且去重。token/secret 存入 DSH credentials，配置只保存引用名称。
 
@@ -50,7 +50,7 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
     reconnectInterval: 5000
     requestTimeout: 30000
     heartbeatTimeout: 120000
-    commandPrefix: ""
+    commandPrefix: ''
     respondToPrivate: true
     respondToGroup: true
     groupMentionOnly: true

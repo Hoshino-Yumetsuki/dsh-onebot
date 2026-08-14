@@ -1,6 +1,6 @@
 # dsh-onebot
 
-DeepSeek Harness（DSH）的 OneBot v11 正向 WebSocket 插件。接收私聊和群聊消息，将消息送入 DSH agent，并在本轮 agent loop 结束后只发送最后一条助手文本。
+DeepSeek Harness（DSH）的 OneBot v11 正向 WebSocket 插件。接收私聊和群聊消息，将消息送入 DSH，并在本轮 agent loop 结束后发送最后一条助手文本。
 
 ## 安装
 
@@ -41,15 +41,13 @@ dsh plugin --profile web add dsh-onebot
     groupMentionOnly: true
 ```
 
-DSH patch 对 `config` 是整项替换，不是深度合并。
-
 ## 消息与回复语义
 
 - 处理 `post_type=message` 且 `message_type=private|group` 的事件。
-- 私聊按机器人账号和用户隔离会话；群聊还按群与发送者隔离，避免上下文串线。
+- 私聊按机器人账号和用户隔离会话；群聊还按群与发送者隔离。
 - 同一会话的消息串行处理。
 - 群聊启用 `groupMentionOnly` 时，支持 CQ 字符串和 segment 数组中的 `at` 判断，并在送入 agent 前移除机器人的 CQ `at`。
-- 不解析 XML 标签判断最终回复。每次模型调用都可能产生 `assistant/message`；插件等待 agent 回到 idle，再从本轮 `turn/end` 所属区间取最后一条 `assistant/message` 的文本块。
+- 插件等待 agent 回到 idle，再从本轮 `turn/end` 所属区间取最后一条 `assistant/message` 的文本块。
 - 回复使用 `send_private_msg` 或 `send_group_msg`，并通过 OneBot `echo` 匹配 API 响应。
 
 ## 开发
@@ -60,4 +58,4 @@ yarn lint
 yarn build
 ```
 
-许可证：MPL-2.0。
+许可证：MPL-2.0

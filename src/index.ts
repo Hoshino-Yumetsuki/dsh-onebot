@@ -6,10 +6,10 @@ import { OneBotClient } from './onebot'
 import type { OneBotConfig } from './types'
 
 export const name = 'onebot'
-export const inject = ['agentDefaultModel', 'agents']
+export const inject = ['agentDefaultModel', 'agents', 'attachments', 'systemPrompt', 'tools']
 export const ONEBOT_SETTINGS_NAMESPACE = settingsNamespace('onebot')
 export { Config }
-export type { OneBotConfig, OneBotConfigPatch, OneBotEditableConfig } from './types'
+export type { OneBotAccessMode, OneBotConfig, OneBotConfigPatch, OneBotEditableConfig, OneBotTransport } from './types'
 export { ONEBOT_CONFIG_SERVICE } from './gateway'
 
 export function apply(ctx: Context, config: OneBotConfig = defaultConfig): void {

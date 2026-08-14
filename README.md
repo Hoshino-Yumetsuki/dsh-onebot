@@ -1,6 +1,6 @@
 # dsh-onebot
 
-DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反向 WebSocket。仅 `message` 事件与 Agent 交互；`notice`、`request`、`meta_event` 未知事件保留原始负载并进入观测。
+DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反向 WebSocket
 
 ## Transport
 
@@ -9,6 +9,7 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 - `http`：以 `url` 调用标准 HTTP API，同时在配置的监听地址提供 HTTP POST webhook
 
 四种标准 `post_type` 是 `message`、`notice`、`request`、`meta_event`；只有 `message` 创建 Agent 交互。
+传输层接受并解析四种标准 `post_type`；只有 `message` 事件进入 Agent，其余事件不创建会话或回复。
 
 ## 配置
 
@@ -63,9 +64,11 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 
 - 访问控制顺序为私聊/群聊开关、用户名单、群消息的群名单，最后是提及与前缀。ID 转为字符串后进行匹配；空 allowlist 拒绝全部会话，空 blocklist 允许全部会话
 
-- 回复完全由 `onebot_reply` 回复当前来源（文本和/或图片），用 `onebot_action` 执行 OneBot action 和 JSON 参数
+- 回复由会话作用域内的 `onebot_reply` 提交候选；同一轮多次调用时以后一次为准，仅在 Agent 本轮进入 idle 后向当前来源发送一次文本和/或图片。插件不暴露任意 OneBot action，也不会转发 agent loop 的中间助手文本
 
-- 入站图片只接受 `http(s)` URL 或 `data`/base64，限制重定向和字节数后经 DSH attachments 保存 durable ref
+- 入站图片只接受公网 `http(s)` URL 或带媒体类型的 `data:` URL，限制重定向、总下载时间和字节数后经 DSH attachments 保存 durable ref；不读取 OneBot 机器本地路径，单独 `base64://` 因缺少可信媒体类型而拒绝
+
+- reverse WebSocket / HTTP webhook 绑定非回环地址时，分别必须能解析访问令牌 / webhook 签名密钥，否则监听拒绝启动；WebSocket 与 webhook 入站负载上限均为 1 MiB
 
 - 有 session persistence 时，先以 `list()` 精确判断存在再恢复会话，否则创建一个新会话；恢复会话错误时不会回退。OneBot API 无法删除 DSH 会话历史，历史需在 DSH 侧管理。
 

@@ -11,12 +11,24 @@ export interface OneBotSettingsBridge {
 }
 
 const editableKeys = new Set<keyof OneBotEditableConfig>([
+  'transport',
   'url',
+  'listenHost',
+  'listenPort',
+  'listenPath',
   'accessTokenRef',
+  'webhookSecretRef',
   'reconnectInterval',
+  'requestTimeout',
+  'heartbeatTimeout',
+  'commandPrefix',
   'respondToPrivate',
   'respondToGroup',
-  'groupMentionOnly'
+  'groupMentionOnly',
+  'userAccessMode',
+  'userIds',
+  'groupAccessMode',
+  'groupIds'
 ])
 
 function editable(config: OneBotConfig): OneBotEditableConfig {
@@ -29,14 +41,32 @@ function validatePatch(patch: OneBotConfigPatch): void {
       throw new Error(`onebot: unknown configuration field "${key}"`)
     }
   }
-  if (patch.url !== undefined && patch.url.trim() === '') throw new Error('onebot: url must not be empty')
-  if (patch.accessTokenRef !== undefined && patch.accessTokenRef.trim() === '') {
-    throw new Error('onebot: accessTokenRef must not be empty')
+  if (patch.transport !== undefined && !['forward-ws', 'reverse-ws', 'http'].includes(patch.transport)) {
+    throw new Error('onebot: invalid transport')
   }
-  if (patch.reconnectInterval !== undefined && (
-    !Number.isSafeInteger(patch.reconnectInterval) || patch.reconnectInterval < 0
-  )) {
-    throw new Error('onebot: reconnectInterval must be a non-negative safe integer')
+  for (const key of ['url', 'listenHost', 'listenPath'] as const) {
+    if (patch[key] !== undefined && patch[key].trim() === '') throw new Error(`onebot: ${key} must not be empty`)
+  }
+  if (patch.listenPort !== undefined && (!Number.isSafeInteger(patch.listenPort) || patch.listenPort < 1 || patch.listenPort > 65535)) {
+    throw new Error('onebot: listenPort must be an integer between 1 and 65535')
+  }
+  for (const key of ['reconnectInterval', 'heartbeatTimeout'] as const) {
+    if (patch[key] !== undefined && (!Number.isSafeInteger(patch[key]) || patch[key] < 0)) {
+      throw new Error(`onebot: ${key} must be a non-negative safe integer`)
+    }
+  }
+  if (patch.requestTimeout !== undefined && (!Number.isSafeInteger(patch.requestTimeout) || patch.requestTimeout < 1)) {
+    throw new Error('onebot: requestTimeout must be a positive safe integer')
+  }
+  for (const key of ['userAccessMode', 'groupAccessMode'] as const) {
+    if (patch[key] !== undefined && !['disabled', 'allowlist', 'blocklist'].includes(patch[key])) {
+      throw new Error(`onebot: invalid ${key}`)
+    }
+  }
+  for (const key of ['userIds', 'groupIds'] as const) {
+    if (patch[key] !== undefined && (!Array.isArray(patch[key]) || patch[key].some((id) => typeof id !== 'string'))) {
+      throw new Error(`onebot: ${key} must be an array of strings`)
+    }
   }
 }
 

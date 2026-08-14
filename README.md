@@ -1,54 +1,73 @@
 # dsh-onebot
 
-DeepSeek Harness（DSH）的 OneBot v11 正向 WebSocket 插件。接收私聊和群聊消息，将消息送入 DSH，并在本轮 agent loop 结束后发送最后一条助手文本。
+DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反向 WebSocket。仅 `message` 事件与 Agent 交互；`notice`、`request`、`meta_event` 未知事件保留原始负载并进入观测。
 
-## 安装
+## Transport
 
-```powershell
-dsh plugin --profile web add dsh-onebot
-```
+- `forward-ws`（默认）：连接 OneBot 正向 WebSocket，事件和 action 共用连接
+- `reverse-ws`：监听 WebSocket，等待 OneBot 反向连接
+- `http`：以 `url` 调用标准 HTTP API，同时在配置的监听地址提供 HTTP POST webhook
 
-插件包中的 `cordis.patch.yml` 会注册稳定 row id `onebot`。插件依赖 DSH 的 `agents` 和 `agentDefaultModel` 服务，并使用当前默认模型创建按会话隔离的 agent。
+四种标准 `post_type` 是 `message`、`notice`、`request`、`meta_event`；只有 `message` 创建 Agent 交互。
 
-## OneBot 配置
-
-默认连接 `ws://127.0.0.1:3001`。OneBot 实现需开启 v11 正向 WebSocket 服务。
+## 配置
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
-| `url` | `ws://127.0.0.1:3001` | OneBot v11 正向 WebSocket 地址 |
-| `accessTokenRef` | `ONEBOT_ACCESS_TOKEN` | DSH credentials 中保存访问令牌的引用名 |
-| `reconnectInterval` | `5000` | 断线重连间隔，单位毫秒 |
-| `respondToPrivate` | `true` | 回复私聊消息 |
-| `respondToGroup` | `true` | 回复群聊消息 |
-| `groupMentionOnly` | `true` | 群聊仅在提及机器人时响应 |
+| `transport` | `forward-ws` | `forward-ws`、`reverse-ws` 或 `http` |
+| `url` | `ws://127.0.0.1:3001` | 正向 WS 地址或 HTTP API base URL |
+| `listenHost` | `127.0.0.1` | 反向 WS / webhook 监听地址 |
+| `listenPort` | `3002` | 监听端口 |
+| `listenPath` | `/onebot` | 监听路径 |
+| `accessTokenRef` | `ONEBOT_ACCESS_TOKEN` | 访问令牌的 DSH credential ref |
+| `webhookSecretRef` | `ONEBOT_WEBHOOK_SECRET` | webhook secret 的 DSH credential ref |
+| `reconnectInterval` | `5000` | 重连间隔（毫秒） |
+| `requestTimeout` | `30000` | action 请求超时（毫秒） |
+| `heartbeatTimeout` | `120000` | 心跳超时（毫秒），`0` 禁用 |
+| `commandPrefix` | 空 | 非空时要求此前缀，并从 prompt 移除 |
+| `respondToPrivate` | `true` | 响应私聊 |
+| `respondToGroup` | `true` | 响应群聊 |
+| `groupMentionOnly` | `true` | 群聊要求提及机器人 |
+| `userAccessMode` | `disabled` | `disabled`、`allowlist`、`blocklist` |
+| `userIds` | `[]` | 用户 ID 列表 |
+| `groupAccessMode` | `disabled` | `disabled`、`allowlist`、`blocklist` |
+| `groupIds` | `[]` | 群 ID 列表 |
 
-访问令牌不写入插件配置。将令牌存入 DSH credentials 的 `ONEBOT_ACCESS_TOKEN`（或 `accessTokenRef` 指定的引用）；连接时插件发送 `Authorization: Bearer <token>`。未配置对应 credential 时不发送 Authorization 头。
-
-这些字段也会出现在 DSH 的“设置 → 插件 → 插件配置”中，修改后连接会自动重启。
-
-也可在 profile 的用户 `cordis.patch.yml` 中覆盖整份配置：
+数组在设置 UI 中每行一个 ID，保存时去空白并且去重。token/secret 存入 DSH credentials，配置只保存引用名称。
 
 ```yaml
 - id: onebot
   name: dsh-onebot
   config:
+    transport: forward-ws
     url: ws://127.0.0.1:3001
+    listenHost: 127.0.0.1
+    listenPort: 3002
+    listenPath: /onebot
     accessTokenRef: ONEBOT_ACCESS_TOKEN
+    webhookSecretRef: ONEBOT_WEBHOOK_SECRET
     reconnectInterval: 5000
+    requestTimeout: 30000
+    heartbeatTimeout: 120000
+    commandPrefix: ""
     respondToPrivate: true
     respondToGroup: true
     groupMentionOnly: true
+    userAccessMode: disabled
+    userIds: []
+    groupAccessMode: disabled
+    groupIds: []
 ```
 
-## 消息与回复语义
+## 消息与回复
 
-- 处理 `post_type=message` 且 `message_type=private|group` 的事件。
-- 私聊按机器人账号和用户隔离会话；群聊还按群与发送者隔离。
-- 同一会话的消息串行处理。
-- 群聊启用 `groupMentionOnly` 时，支持 CQ 字符串和 segment 数组中的 `at` 判断，并在送入 agent 前移除机器人的 CQ `at`。
-- 插件等待 agent 回到 idle，再从本轮 `turn/end` 所属区间取最后一条 `assistant/message` 的文本块。
-- 回复使用 `send_private_msg` 或 `send_group_msg`，并通过 OneBot `echo` 匹配 API 响应。
+- 访问控制顺序为私聊/群聊开关、用户名单、群消息的群名单，最后是提及与前缀。ID 转为字符串后进行匹配；空 allowlist 拒绝全部会话，空 blocklist 允许全部会话
+
+- 回复完全由 `onebot_reply` 回复当前来源（文本和/或图片），用 `onebot_action` 执行 OneBot action 和 JSON 参数
+
+- 入站图片只接受 `http(s)` URL 或 `data`/base64，限制重定向和字节数后经 DSH attachments 保存 durable ref
+
+- 有 session persistence 时，先以 `list()` 精确判断存在再恢复会话，否则创建一个新会话；恢复会话错误时不会回退。OneBot API 无法删除 DSH 会话历史，历史需在 DSH 侧管理。
 
 ## 开发
 

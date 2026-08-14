@@ -28,10 +28,12 @@ import type { OneBotConfig } from './types'
 interface ReplyCandidate {
   text?: string
   images: string[]
+  quote: boolean
 }
 
 interface ReplyState {
   active: boolean
+  sourceMessageId?: string | number
   candidate?: ReplyCandidate
 }
 
@@ -42,6 +44,7 @@ interface SessionEntry {
 }
 
 function replyMessageId(value: unknown): string | number {
+  if (typeof value === 'string' || typeof value === 'number') return value
   if (value !== null && typeof value === 'object' && 'message_id' in value) {
     const id = value.message_id
     if (typeof id === 'string' || typeof id === 'number') return id
@@ -109,8 +112,7 @@ export class OneBotClient {
     )
       return
     const config = this.source()
-    let text = messageContent(event)
-    if (config.commandPrefix !== '') text = text.slice(config.commandPrefix.length).trimStart()
+    const text = messageContent(event, config.commandPrefix)
     const imageSources = messageSegments(event)
       .filter((segment) => segment.type === 'image')
       .map((segment) =>
@@ -171,10 +173,14 @@ export class OneBotClient {
     const setup = (agentCtx: Context): void => {
       const selected: ModelSelectionRef = { current: selection, assembled: undefined }
       installModelSelection(agentCtx, selected)
+      const temporaryTarget =
+        event.message_type === 'private' && event.sub_type === 'group'
+          ? `, temporary_group_id=${String(event.target_id)}`
+          : ''
       agentCtx.systemPrompt.context({
         name: 'onebot:message-source',
         order: 100,
-        text: `OneBot v11 message source: self_id=${String(event.self_id)}, message_type=${event.message_type}, user_id=${String(event.user_id)}${event.group_id === undefined ? '' : `, group_id=${String(event.group_id)}`}. Reply only by calling onebot_reply.`
+        text: `OneBot v11 message source: self_id=${String(event.self_id)}, message_type=${event.message_type}, sub_type=${event.sub_type ?? 'unknown'}, user_id=${String(event.user_id)}${event.group_id === undefined ? '' : `, group_id=${String(event.group_id)}`}${temporaryTarget}. Reply only by calling onebot_reply.`
       })
       agentCtx.tools.register(this.replyTool(reply))
     }
@@ -210,6 +216,10 @@ export class OneBotClient {
           type: 'array',
           items: { type: 'string' },
           description: 'Optional image sources accepted by the OneBot implementation.'
+        },
+        quote: {
+          type: 'boolean',
+          description: 'Quote the inbound message in the reply. Defaults to true when it has an ID.'
         }
       },
       output: {
@@ -225,7 +235,11 @@ export class OneBotClient {
         if ((args.text === undefined || args.text === '') && images.length === 0) {
           throw new Error('onebot_reply requires text or at least one image')
         }
-        state.candidate = { text: args.text, images }
+        state.candidate = {
+          text: args.text,
+          images,
+          quote: args.quote !== false && state.sourceMessageId !== undefined
+        }
         return 'Final OneBot reply queued; a later onebot_reply call in this turn replaces it.'
       }
     })
@@ -247,6 +261,7 @@ export class OneBotClient {
     )
     entry.reply.active = true
     entry.reply.candidate = undefined
+    entry.reply.sourceMessageId = event.message_id
     try {
       agent.followup(
         createUserMessage({
@@ -262,11 +277,14 @@ export class OneBotClient {
       await agent.whenIdle()
     } finally {
       entry.reply.active = false
+      entry.reply.sourceMessageId = undefined
     }
     const reply = entry.reply.candidate as ReplyCandidate | undefined
     entry.reply.candidate = undefined
     if (reply === undefined || this.stopped) return
     const segments: Array<{ type: string; data: Record<string, unknown> }> = []
+    if (reply.quote && event.message_id !== undefined)
+      segments.push({ type: 'reply', data: { id: String(event.message_id) } })
     if (reply.text !== undefined && reply.text !== '')
       segments.push({ type: 'text', data: { text: reply.text } })
     for (const image of reply.images) segments.push({ type: 'image', data: { file: image } })

@@ -22,6 +22,8 @@ export interface OneBotMessageEvent extends OneBotEventBase {
   message_id?: string | number
   message: string | OneBotSegment[]
   raw_message: string
+  sub_type?: string
+  target_id?: string | number
 }
 
 export type OneBotEvent = OneBotMessageEvent | OneBotEventBase
@@ -86,13 +88,9 @@ function normalizeSegments(value: unknown): OneBotSegment[] | undefined {
   if (!Array.isArray(value)) return undefined
   const segments: OneBotSegment[] = []
   for (const valueSegment of value) {
-    if (
-      !isRecord(valueSegment) ||
-      typeof valueSegment.type !== 'string' ||
-      !isRecord(valueSegment.data)
-    )
-      return undefined
-    segments.push({ type: valueSegment.type, data: valueSegment.data })
+    if (!isRecord(valueSegment) || typeof valueSegment.type !== 'string') return undefined
+    if (valueSegment.data !== null && !isRecord(valueSegment.data)) return undefined
+    segments.push({ type: valueSegment.type, data: valueSegment.data ?? {} })
   }
   return segments
 }
@@ -102,12 +100,16 @@ export function parseEvent(value: unknown): OneBotEvent | undefined {
   const raw = value
   if (value.post_type !== 'message' && value.post_type !== 'message_sent')
     return { ...value, raw } as OneBotEvent
+  const temporaryTarget = value.target_id ?? value.group_id
   if (
     (value.message_type !== 'private' && value.message_type !== 'group') ||
     !isId(value.self_id) ||
     !isId(value.user_id) ||
     (value.message_id !== undefined && !isId(value.message_id)) ||
-    (value.message_type === 'group' && !isId(value.group_id))
+    (value.target_id !== undefined && !isId(value.target_id)) ||
+    (value.sub_type !== undefined && typeof value.sub_type !== 'string') ||
+    (value.message_type === 'group' && !isId(value.group_id)) ||
+    (value.message_type === 'private' && value.sub_type === 'group' && !isId(temporaryTarget))
   )
     return undefined
 
@@ -132,7 +134,15 @@ export function parseEvent(value: unknown): OneBotEvent | undefined {
                 : ''
             )
             .join('')
-  return { ...value, message, raw_message: rawMessage, raw } as OneBotMessageEvent
+  return {
+    ...value,
+    ...(value.message_type === 'private' && value.sub_type === 'group'
+      ? { target_id: temporaryTarget }
+      : {}),
+    message,
+    raw_message: rawMessage,
+    raw
+  } as OneBotMessageEvent
 }
 
 export function isMessageEvent(event: OneBotEvent): event is OneBotMessageEvent {
@@ -156,13 +166,52 @@ export function mentionsSelf(event: OneBotMessageEvent): boolean {
   )
 }
 
-export function messageContent(event: OneBotMessageEvent): string {
-  const selfId = String(event.self_id)
+function segmentContent(segment: OneBotSegment, selfId: string): string {
+  if (segment.type === 'text' && typeof segment.data.text === 'string') return segment.data.text
+  if (segment.type === 'at') {
+    const qq = segment.data.qq
+    if (!isId(qq) && qq !== 'all') return '[mention]'
+    if (String(qq) === selfId) return ''
+    return qq === 'all' ? '[mention:all]' : `[mention:${String(qq)}]`
+  }
+  if (segment.type === 'reply' && isId(segment.data.id)) return `[reply:${String(segment.data.id)}]`
+  if (segment.type === 'face' && isId(segment.data.id)) return `[face:${String(segment.data.id)}]`
+  if (segment.type === 'record') return '[audio]'
+  if (segment.type === 'video') return '[video]'
+  if (segment.type === 'file') {
+    const name = segment.data.name ?? segment.data.file
+    return typeof name === 'string' || typeof name === 'number'
+      ? `[file:${String(name)}]`
+      : '[file]'
+  }
+  if (segment.type === 'json' || segment.type === 'xml') return `[${segment.type}]`
+  if (segment.type === 'forward') {
+    const id = segment.data.id
+    return isId(id) ? `[forward:${String(id)}]` : '[forward]'
+  }
+  return segment.type === 'image' ? '' : `[onebot:${segment.type}]`
+}
+
+export function messageText(event: OneBotMessageEvent): string {
   return messageSegments(event)
-    .filter((segment) => segment.type !== 'at' || String(segment.data.qq) !== selfId)
     .map((segment) =>
       segment.type === 'text' && typeof segment.data.text === 'string' ? segment.data.text : ''
     )
+    .join('')
+    .trim()
+}
+
+export function messageContent(event: OneBotMessageEvent, stripPrefix = ''): string {
+  const selfId = String(event.self_id)
+  let remaining = stripPrefix
+  return messageSegments(event)
+    .map((segment) => {
+      if (segment.type !== 'text' || typeof segment.data.text !== 'string')
+        return segmentContent(segment, selfId)
+      const remove = Math.min(remaining.length, segment.data.text.length)
+      remaining = remaining.slice(remove)
+      return segment.data.text.slice(remove)
+    })
     .join('')
     .trim()
 }
@@ -189,12 +238,24 @@ export function accessAllowed(event: OneBotMessageEvent, config: AccessConfig): 
       return false
     if (config.groupMentionOnly && !mentionsSelf(event)) return false
   }
-  return config.commandPrefix === '' || messageContent(event).startsWith(config.commandPrefix)
+  return config.commandPrefix === '' || messageText(event).startsWith(config.commandPrefix)
 }
 
 export function sessionKey(event: OneBotMessageEvent): string {
   const group = event.message_type === 'group' ? String(event.group_id) : '-'
-  return ['onebot', event.self_id, 'onebot-v11', event.message_type, group, event.user_id]
+  const temporaryTarget =
+    event.message_type === 'private' && event.sub_type === 'group' && event.target_id !== undefined
+      ? String(event.target_id)
+      : '-'
+  return [
+    'onebot',
+    event.self_id,
+    'onebot-v11',
+    event.message_type,
+    group,
+    temporaryTarget,
+    event.user_id
+  ]
     .map((part) => encodeURIComponent(String(part)))
     .join(':')
 }

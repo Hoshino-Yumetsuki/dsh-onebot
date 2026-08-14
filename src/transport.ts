@@ -130,13 +130,26 @@ export class OneBotTransportRuntime implements OneBotTransport {
   }
 
   private actionData(value: unknown): unknown {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
     const response = value as Partial<OneBotActionResponse>
-    if (response?.status !== 'ok' || response.retcode !== 0) {
+    const status = response.status
+    const retcode = response.retcode
+    if ((status !== undefined && status !== 'ok') || (retcode !== undefined && retcode !== 0)) {
       throw new Error(
-        `onebot: API request failed (${String(response?.retcode)}): ${response?.wording ?? response?.message ?? ''}`
+        `onebot: API request failed (${String(retcode)}): ${response.wording ?? response.message ?? ''}`
       )
     }
-    return response.data
+    if ('data' in response) return response.data
+    if (
+      status === undefined &&
+      retcode === undefined &&
+      'message_id' in response &&
+      (typeof response.message_id === 'string' || typeof response.message_id === 'number')
+    )
+      return response
+    throw new Error(
+      `onebot: API response has no valid result${response.message === undefined ? '' : `: ${response.message}`}`
+    )
   }
 
   private async open(): Promise<void> {

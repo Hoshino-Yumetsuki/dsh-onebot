@@ -882,6 +882,7 @@ __metadata:
     oxfmt: "npm:^0.62.0"
     oxlint: "npm:^1.77.0"
     oxlint-tsgolint: "npm:^7.0.2001"
+    react: "npm:^19.2.8"
     rolldown: "npm:1.0.0-beta.54"
     rolldown-plugin-dts: "npm:^0.18.3"
     typescript: "npm:^5.9.3"
@@ -1135,6 +1136,13 @@ __metadata:
   version: 2.0.3
   resolution: "pathe@npm:2.0.3"
   checksum: 10c0/c118dc5a8b5c4166011b2b70608762e260085180bb9e33e80a50dcdb1e78c010b1624f4280c492c92b05fc276715a4c357d1f9edc570f8f1b3d90b6839ebaca1
+  languageName: node
+  linkType: hard
+
+"react@npm:^19.2.8":
+  version: 19.2.8
+  resolution: "react@npm:19.2.8"
+  checksum: 10c0/5f86bdb56426652fd6d989d30a6f2e603c057272c47c9ca3a3fbe190a3a39ee9ccce937d63cfc039717abed1b8891d6a499134bc35311acc07eafdacd86537cd
   languageName: node
   linkType: hard
 

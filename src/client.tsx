@@ -429,15 +429,9 @@ interface ClientModuleWindow extends Window {
                 ●
               </span>
             ) : null}
-            <span
-              style={{
-                color: 'var(--dsw-alias-label-tertiary)',
-                transform: open ? 'rotate(180deg)' : 'none',
-                transition: 'transform .16s'
-              }}
-            >
-              ⌄
-            </span>
+            <IconChevronDownOutline14
+              className={`onebot-settings-chevron${open ? ' onebot-settings-chevron-open' : ''}`}
+            />
           </button>
           {open ? (
             <div
@@ -634,6 +628,14 @@ interface ClientModuleWindow extends Window {
       )
     }
     const inject = ['slots', 'locale', 'connection']
+    const styleId = 'dsh-onebot-settings'
+    if (!document.querySelector(`style[data-plugin-css="${styleId}"]`)) {
+      const style = document.createElement('style')
+      style.dataset.pluginCss = styleId
+      style.textContent =
+        '.onebot-settings-chevron{flex:none;color:var(--dsw-alias-label-tertiary);transition:transform .16s}.onebot-settings-chevron-open{transform:rotate(180deg)}'
+      document.head.append(style)
+    }
     function apply(ctx: any) {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'onebot: settings locale')
       const t = ctx.locale.bind(NS),

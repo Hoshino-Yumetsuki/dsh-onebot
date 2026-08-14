@@ -1,0 +1,9 @@
+lib
+node_modules
+.yarn
+.pnp.*
+yarn-error.log
+tsconfig.tsbuildinfo
+.claude
+.omc
+.pack-test

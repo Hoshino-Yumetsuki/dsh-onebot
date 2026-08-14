@@ -1,0 +1,4 @@
+# Install the OneBot v11 WebSocket bridge as a profile layer.
+- insert:
+    - id: onebot
+      name: dsh-onebot

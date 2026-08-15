@@ -11,6 +11,11 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 四种标准 `post_type` 是 `message`、`notice`、`request`、`meta_event`；只有 `message` 创建 Agent 交互。
 传输层接受并解析四种标准 `post_type`；只有 `message` 事件进入 Agent，其余事件不创建会话或回复。
 
+## 安装
+
+```bash
+dsh plugin --profile web add dsh-onebot
+
 ## 配置
 
 | 字段                | 默认值                  | 说明                                 |

@@ -22,7 +22,7 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('lib',{recursive:true,force:true})\" && rolldown -c rolldown.config.js",
+    "build": "rimraf lib && rolldown -c rolldown.config.js",
     "lint": "oxlint",
     "lint-fix": "oxlint --fix && oxfmt",
     "format": "oxfmt",
@@ -95,6 +95,7 @@
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "rimraf": "^6.1.3",
     "rolldown": "1.0.0-beta.54",
     "rolldown-plugin-dts": "^0.18.3",
     "typescript": "^5.9.3"

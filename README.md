@@ -15,6 +15,7 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 
 ```bash
 dsh plugin --profile web add dsh-onebot
+```
 
 ## 配置
 

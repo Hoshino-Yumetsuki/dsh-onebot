@@ -646,7 +646,7 @@ interface ClientModuleWindow extends Window {
       )
       ctx.slots.inject('settings.plugin.item', function* () {
         yield ctx.slots.register(
-          { name: 'settings.plugin.item', id: 'onebot', order: 30, locale: NS },
+          { name: 'settings.plugin.item', key: 'onebot', locale: NS },
           () => <Card t={t} scope={scope} />
         )
       })

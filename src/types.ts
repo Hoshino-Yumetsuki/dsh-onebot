@@ -1,5 +1,5 @@
-export type OneBotTransport = 'forward-ws' | 'reverse-ws' | 'http'
-export type OneBotAccessMode = 'disabled' | 'allowlist' | 'blocklist'
+export type OneBotTransport = "forward-ws" | "reverse-ws" | "http"
+export type OneBotAccessMode = "disabled" | "allowlist" | "blocklist"
 
 export interface OneBotConfig {
   transport: OneBotTransport
@@ -17,9 +17,9 @@ export interface OneBotConfig {
   respondToGroup: boolean
   groupMentionOnly: boolean
   userAccessMode: OneBotAccessMode
-  userIds: string[]
+  userIds: readonly string[]
   groupAccessMode: OneBotAccessMode
-  groupIds: string[]
+  groupIds: readonly string[]
 }
 
 export type OneBotEditableConfig = OneBotConfig

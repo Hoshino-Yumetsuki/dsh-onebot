@@ -1,17 +1,17 @@
-import type { Context } from '@deepseek-ai/cordis'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import type { Context } from "@deepseek-ai/cordis"
+import { credentialRef } from "@deepseek-ai/dsh-credentials"
 import {
   installModelSelection,
   type AgentHandle,
   type ModelSelectionRef
-} from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-agent-default-model'
-import { createUserMessage, type ContentBlock } from '@deepseek-ai/dsh-llm'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-session-persistence'
-import { defineTool } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-system-prompt'
-import type {} from '@deepseek-ai/dsh-attachment'
+} from "@deepseek-ai/dsh-agent"
+import type {} from "@deepseek-ai/dsh-agent-default-model"
+import { createUserMessage, type ContentBlock } from "@deepseek-ai/dsh-llm"
+import { SessionId } from "@deepseek-ai/dsh-session"
+import type {} from "@deepseek-ai/dsh-session-persistence"
+import { defineTool } from "@deepseek-ai/dsh-tools"
+import type {} from "@deepseek-ai/dsh-system-prompt"
+import type {} from "@deepseek-ai/dsh-attachment"
 import {
   accessAllowed,
   isMessageEvent,
@@ -20,10 +20,20 @@ import {
   parseEvent,
   sessionKey,
   type OneBotMessageEvent
-} from './protocol'
-import { saveIncomingImages } from './images'
-import { createOneBotTransport, type OneBotTransport } from './transport'
-import type { OneBotConfig } from './types'
+} from "./protocol"
+import { saveIncomingImages } from "./images"
+import { createOneBotTransport, type OneBotTransport } from "./transport"
+import type { OneBotConfig } from "./types"
+
+declare module "@deepseek-ai/dsh-llm" {
+  interface MessageSourceMap {
+    onebot: {
+      kind: "onebot"
+      form: "notice"
+      summary: string
+    }
+  }
+}
 
 interface ReplyCandidate {
   text?: string
@@ -44,12 +54,12 @@ interface SessionEntry {
 }
 
 function replyMessageId(value: unknown): string | number {
-  if (typeof value === 'string' || typeof value === 'number') return value
-  if (value !== null && typeof value === 'object' && 'message_id' in value) {
+  if (typeof value === "string" || typeof value === "number") return value
+  if (value !== null && typeof value === "object" && "message_id" in value) {
     const id = value.message_id
-    if (typeof id === 'string' || typeof id === 'number') return id
+    if (typeof id === "string" || typeof id === "number") return id
   }
-  throw new Error('onebot: send action returned no message_id')
+  throw new Error("onebot: send action returned no message_id")
 }
 
 export class OneBotClient {
@@ -65,7 +75,7 @@ export class OneBotClient {
     private readonly source: () => OneBotConfig
   ) {
     const resolveCredential = async (ref: string): Promise<string | undefined> => {
-      const credential = await ctx.get('credentials')?.resolve(credentialRef(ref))
+      const credential = await ctx.get("credentials")?.resolve(credentialRef(ref))
       return credential?.value
     }
     this.transport = createOneBotTransport(
@@ -101,12 +111,12 @@ export class OneBotClient {
   private receive(value: unknown): void {
     const event = parseEvent(value)
     if (event === undefined) {
-      this.ctx.logger.warn('onebot: ignored malformed event')
+      this.ctx.logger.warn("onebot: ignored malformed event")
       return
     }
     if (!isMessageEvent(event)) return
     if (
-      event.post_type === 'message_sent' ||
+      event.post_type === "message_sent" ||
       !accessAllowed(event, this.source()) ||
       this.duplicate(event)
     )
@@ -114,15 +124,15 @@ export class OneBotClient {
     const config = this.source()
     const text = messageContent(event, config.commandPrefix)
     const imageSources = messageSegments(event)
-      .filter((segment) => segment.type === 'image')
+      .filter((segment) => segment.type === "image")
       .map((segment) =>
-        typeof segment.data.url === 'string' ? segment.data.url : segment.data.file
+        typeof segment.data.url === "string" ? segment.data.url : segment.data.file
       )
       .filter(
         (source): source is string =>
-          typeof source === 'string' && /^(?:https?:|data:|base64:\/\/)/i.test(source)
+          typeof source === "string" && /^(?:https?:|data:|base64:\/\/)/i.test(source)
       )
-    if (text === '' && imageSources.length === 0) return
+    if (text === "" && imageSources.length === 0) return
     const key = sessionKey(event)
     void this.enqueue(key, event, text, imageSources).catch((error: unknown) => {
       this.ctx.logger.warn(`onebot: message handling failed: ${String(error)}`)
@@ -149,7 +159,7 @@ export class OneBotClient {
     images: string[]
   ): Promise<void> {
     const entry = await this.session(key, event)
-    if (this.stopped) throw new Error('onebot: client is stopped')
+    if (this.stopped) throw new Error("onebot: client is stopped")
     const work = entry.tail.then(() => this.run(entry, event, text, images))
     entry.tail = work.catch(() => {})
     await work
@@ -166,7 +176,7 @@ export class OneBotClient {
   }
 
   private async createSession(key: string, event: OneBotMessageEvent): Promise<SessionEntry> {
-    if (this.stopped) throw new Error('onebot: client is stopped')
+    if (this.stopped) throw new Error("onebot: client is stopped")
     const selection = this.ctx.agentDefaultModel.currentSelection()
     const sessionId = SessionId(key)
     const reply: ReplyState = { active: false }
@@ -174,13 +184,13 @@ export class OneBotClient {
       const selected: ModelSelectionRef = { current: selection, assembled: undefined }
       installModelSelection(agentCtx, selected)
       const temporaryTarget =
-        event.message_type === 'private' && event.sub_type === 'group'
+        event.message_type === "private" && event.sub_type === "group"
           ? `, temporary_group_id=${String(event.target_id)}`
-          : ''
+          : ""
       agentCtx.systemPrompt.context({
-        name: 'onebot:message-source',
+        name: "onebot:message-source",
         order: 100,
-        text: `OneBot v11 message source: self_id=${String(event.self_id)}, message_type=${event.message_type}, sub_type=${event.sub_type ?? 'unknown'}, user_id=${String(event.user_id)}${event.group_id === undefined ? '' : `, group_id=${String(event.group_id)}`}${temporaryTarget}. Reply only by calling onebot_reply.`
+        text: `OneBot v11 message source: self_id=${String(event.self_id)}, message_type=${event.message_type}, sub_type=${event.sub_type ?? "unknown"}, user_id=${String(event.user_id)}${event.group_id === undefined ? "" : `, group_id=${String(event.group_id)}`}${temporaryTarget}. Reply only by calling onebot_reply.`
       })
       agentCtx.tools.register(this.replyTool(reply))
     }
@@ -188,17 +198,17 @@ export class OneBotClient {
       agentOptions: { provider: selection.provider, model: selection.model },
       setup
     }
-    const persistence = this.ctx.get('sessionPersistence')
+    const persistence = this.ctx.get("sessionPersistence")
     const exists =
       persistence === undefined
         ? false
-        : (await persistence.list()).some((header) => header.id === sessionId)
+        : (await persistence.list()).some((snapshot) => snapshot.header.id === sessionId)
     const handle = exists
       ? await this.ctx.agents.resume({ resumeSessionId: sessionId, ...options })
       : await this.ctx.agents.create({ sessionId, meta: { cwd: process.cwd() }, ...options })
     if (this.stopped) {
       await handle.dispose()
-      throw new Error('onebot: client is stopped')
+      throw new Error("onebot: client is stopped")
     }
     const entry = { handle, tail: Promise.resolve(), reply }
     this.sessions.set(key, entry)
@@ -207,40 +217,40 @@ export class OneBotClient {
 
   private replyTool(state: ReplyState) {
     return defineTool({
-      name: 'onebot_reply',
+      name: "onebot_reply",
       description:
-        'Set the final reply for the current OneBot turn. Later calls replace the earlier candidate.',
+        "Set the final reply for the current OneBot turn. Later calls replace the earlier candidate.",
       parameters: {
-        text: { type: 'string', description: 'Reply text. Omit when sending only images.' },
+        text: { type: "string", description: "Reply text. Omit when sending only images." },
         images: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Optional image sources accepted by the OneBot implementation.'
+          type: "array",
+          items: { type: "string" },
+          description: "Optional image sources accepted by the OneBot implementation."
         },
         quote: {
-          type: 'boolean',
-          description: 'Quote the inbound message in the reply. Defaults to true when it has an ID.'
+          type: "boolean",
+          description: "Quote the inbound message in the reply. Defaults to true when it has an ID."
         }
       },
       output: {
-        schema: { type: 'string' },
-        render: (_args, value) => [{ type: 'text', text: value }]
+        schema: { type: "string" },
+        render: (_args, value) => [{ type: "text", text: value }]
       },
       execute: async (args) => {
         if (!state.active)
           throw new Error(
-            'onebot_reply is only available while processing an inbound OneBot message'
+            "onebot_reply is only available while processing an inbound OneBot message"
           )
         const images = args.images ?? []
-        if ((args.text === undefined || args.text === '') && images.length === 0) {
-          throw new Error('onebot_reply requires text or at least one image')
+        if ((args.text === undefined || args.text === "") && images.length === 0) {
+          throw new Error("onebot_reply requires text or at least one image")
         }
         state.candidate = {
           text: args.text,
           images,
           quote: args.quote !== false && state.sourceMessageId !== undefined
         }
-        return 'Final OneBot reply queued; a later onebot_reply call in this turn replaces it.'
+        return "Final OneBot reply queued; a later onebot_reply call in this turn replaces it."
       }
     })
   }
@@ -253,9 +263,9 @@ export class OneBotClient {
   ): Promise<void> {
     const { agent } = entry.handle
     await agent.whenIdle()
-    if (this.stopped) throw new Error('onebot: client is stopped')
+    if (this.stopped) throw new Error("onebot: client is stopped")
     const content: ContentBlock[] = []
-    if (text !== '') content.push({ type: 'text', text })
+    if (text !== "") content.push({ type: "text", text })
     content.push(
       ...(await saveIncomingImages(this.ctx, imageSources, this.source().requestTimeout))
     )
@@ -267,9 +277,8 @@ export class OneBotClient {
         createUserMessage({
           content,
           source: {
-            kind: 'plugin',
-            plugin: 'dsh-onebot',
-            form: 'notice',
+            kind: "onebot",
+            form: "notice",
             summary: `OneBot ${event.message_type} message from ${String(event.user_id)}`
           }
         })
@@ -284,13 +293,13 @@ export class OneBotClient {
     if (reply === undefined || this.stopped) return
     const segments: Array<{ type: string; data: Record<string, unknown> }> = []
     if (reply.quote && event.message_id !== undefined)
-      segments.push({ type: 'reply', data: { id: String(event.message_id) } })
-    if (reply.text !== undefined && reply.text !== '')
-      segments.push({ type: 'text', data: { text: reply.text } })
-    for (const image of reply.images) segments.push({ type: 'image', data: { file: image } })
-    const action = event.message_type === 'private' ? 'send_private_msg' : 'send_group_msg'
+      segments.push({ type: "reply", data: { id: String(event.message_id) } })
+    if (reply.text !== undefined && reply.text !== "")
+      segments.push({ type: "text", data: { text: reply.text } })
+    for (const image of reply.images) segments.push({ type: "image", data: { file: image } })
+    const action = event.message_type === "private" ? "send_private_msg" : "send_group_msg"
     const target =
-      event.message_type === 'private' ? { user_id: event.user_id } : { group_id: event.group_id }
+      event.message_type === "private" ? { user_id: event.user_id } : { group_id: event.group_id }
     replyMessageId(await this.transport.request(action, { ...target, message: segments }))
   }
 }

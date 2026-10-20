@@ -1,20 +1,18 @@
-import type { Context } from '@deepseek-ai/cordis'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
-import { Config, defaultConfig } from './config'
-import { registerOneBotConfigGateway } from './gateway'
-import { OneBotClient } from './onebot'
-import type { OneBotConfig } from './types'
+import type { Context, Volatile } from "@deepseek-ai/cordis"
+import { Config } from "./config"
+import { registerOneBotConfigGateway } from "./gateway"
+import { OneBotClient } from "./onebot"
+import type { OneBotConfig } from "./types"
 
-export const name = 'onebot'
+export const name = "onebot"
 export const inject = [
-  'agentDefaultModel',
-  'agents',
-  'attachments',
-  'systemPrompt',
-  'tools',
-  'webServer'
+  "agentDefaultModel",
+  "agents",
+  "attachments",
+  "systemPrompt",
+  "tools",
+  "webServer"
 ]
-export const ONEBOT_SETTINGS_NAMESPACE = settingsNamespace('onebot')
 export { Config }
 export type {
   OneBotAccessMode,
@@ -22,23 +20,18 @@ export type {
   OneBotConfigPatch,
   OneBotEditableConfig,
   OneBotTransport
-} from './types'
-export { registerOneBotConfigGateway } from './gateway'
+} from "./types"
+export { registerOneBotConfigGateway } from "./gateway"
 
-export function apply(ctx: Context, config: OneBotConfig = defaultConfig): void {
-  let current = () => config
-  const client = new OneBotClient(ctx, () => current())
-  installSettingsSection(ctx, ONEBOT_SETTINGS_NAMESPACE, Config, config, {
-    setSource(source) {
-      current = source
-    },
-    onChange() {
-      client.restart()
-    }
-  })
-  registerOneBotConfigGateway(ctx, { source: () => current() })
+export function apply(ctx: Context, config: Volatile<OneBotConfig>): void {
+  const client = new OneBotClient(ctx, () => config.get())
+  ctx.on("loader/volatile-update", () => client.restart())
+  ctx.inject(["settings"], (sctx) =>
+    sctx.effect(() => sctx.settings.configure({ auto: false }, ctx.fiber))
+  )
+  registerOneBotConfigGateway(ctx, { source: () => config.get() })
   ctx.effect(() => {
     client.start()
     return () => client.stop()
-  }, 'onebot: WebSocket client')
+  }, "onebot: WebSocket client")
 }

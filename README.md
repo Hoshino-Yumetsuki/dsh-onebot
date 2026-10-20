@@ -13,9 +13,13 @@ DeepSeek Harness（DSH）的 OneBot v11 适配器，支持 HTTP、正向和反�
 
 ## 安装
 
+从 1.4.0 起要求 DSH `^0.2.1-rc.2`，开发依赖及运行验证基于 `0.2.1-rc.2`；DSH `0.1.0-rc.6` 请使用 1.3.0。
+
 ```bash
 dsh plugin --profile web add dsh-onebot
 ```
+
+桌面版将 `--profile web` 替换为 `--profile desktop`。修复版本发布到 npm 后，可指定 `dsh-onebot@1.4.0` 安装，避免仍使用 1.3.0 的兼容声明；无需 `allow-version` 豁免。
 
 ## 配置
 
@@ -41,6 +45,8 @@ dsh plugin --profile web add dsh-onebot
 | `groupIds`          | `[]`                    | 群 ID 列表                           |
 
 数组在设置 UI 中每行一个 ID，保存时去空白并且去重。token/secret 存入 DSH credentials，配置只保存引用名称。
+
+设置通过 DSH Loader 的 volatile 配置实时生效，保存后重连传输，不重建已有 Agent 会话；设置写入当前插件实例的 profile entry ID，不要求固定为 `onebot`。
 
 ```yaml
 - id: onebot
@@ -76,7 +82,7 @@ dsh plugin --profile web add dsh-onebot
 
 - reverse WebSocket / HTTP webhook 绑定非回环地址时，分别必须能解析访问令牌 / webhook 签名密钥，否则监听拒绝启动；WebSocket 与 webhook 入站负载上限均为 1 MiB
 
-- 有 session persistence 时，先以 `list()` 精确判断存在再恢复会话，否则创建一个新会话；恢复会话错误时不会回退。OneBot API 无法删除 DSH 会话历史，历史需在 DSH 侧管理。
+- 有 session persistence 时，读取 `list()` 返回的 snapshot 的 `header.id` 精确判断存在再恢复会话，否则创建一个新会话；恢复会话错误时不会回退。OneBot API 无法删除 DSH 会话历史，历史需在 DSH 侧管理。
 
 ## 开发
 
@@ -84,6 +90,9 @@ dsh plugin --profile web add dsh-onebot
 yarn install
 yarn lint
 yarn build
+yarn test
 ```
+
+`yarn test` 构建后使用真实 DSH Loader、SettingsForms、HTTP 和 WebSocket 验证配置保存、连接切换与已有会话恢复/回复；Agent 和持久化服务使用隔离测试替身，不请求真实模型。
 
 许可证：MPL-2.0
